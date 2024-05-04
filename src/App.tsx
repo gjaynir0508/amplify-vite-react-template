@@ -9,12 +9,17 @@ const client = generateClient<Schema>();
 
 function App() {
 	const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
+	const [reload, setReload] = useState(false);
 
 	useEffect(() => {
-		client.models.Todo.observeQuery().subscribe({
+		const sub = client.models.Todo.observeQuery().subscribe({
 			next: (data) => setTodos([...data.items]),
 		});
-	}, []);
+
+		return () => {
+			sub.unsubscribe();
+		};
+	}, [reload]);
 
 	function createTodo() {
 		client.models.Todo.create({ content: window.prompt("Todo content") });
@@ -28,18 +33,22 @@ function App() {
 		<Authenticator>
 			{({ signOut, user }) => (
 				<main>
-					<h1>My todos</h1>
+					<h1>{user?.signInDetails?.loginId}'s todos</h1>
 					<button onClick={createTodo}>+ new</button>
-					<ul>
-						{todos.map((todo) => (
-							<li
-								key={todo.id}
-								onClick={() => deleteTodo(todo.id)}
-							>
-								{todo.content}
-							</li>
-						))}
-					</ul>
+					{todos.length < 1 ? (
+						<p>No todos yet</p>
+					) : (
+						<ul>
+							{todos.map((todo) => (
+								<li
+									key={todo.id}
+									onClick={() => deleteTodo(todo.id)}
+								>
+									{todo.content}
+								</li>
+							))}
+						</ul>
+					)}
 					<div>
 						🥳 App successfully hosted. Try creating a new todo.
 						<br />
@@ -48,7 +57,15 @@ function App() {
 						</a>
 					</div>
 					{user && <div>Logged in as {user.username}</div>}
-					<button onClick={signOut}>Sign out</button>
+					<button
+						onClick={() => {
+							setTodos([]);
+							setReload(!reload);
+							if (signOut) signOut();
+						}}
+					>
+						Sign out
+					</button>
 				</main>
 			)}
 		</Authenticator>
